@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Внутренняя система планирования</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✅</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Onest:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E8EDF1;
+  --dot:#C3CDD6;
+  --ink:#1B2A4A;
+  --ink-soft:#4E5D78;
+  --marker:#F2CF3B;
+  --pencil:#D2443A;
+  --sheet:#FFFFFF;
+  --line:#B9C4CF;
+  --display:"Unbounded", "Arial Black", system-ui, sans-serif;
+  --text:"Onest", "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#141B2B; --dot:#2A3550; --ink:#E6ECF5; --ink-soft:#9AA8C2;
+    --marker:#E8C53A; --pencil:#F0685E; --sheet:#1C2539; --line:#34405A;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#141B2B; --dot:#2A3550; --ink:#E6ECF5; --ink-soft:#9AA8C2;
+  --marker:#E8C53A; --pencil:#F0685E; --sheet:#1C2539; --line:#34405A;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--paper);
+  background-image:radial-gradient(var(--dot) 1.2px, transparent 1.2px);
+  background-size:24px 24px;
+  color:var(--ink);
+  font-family:var(--text);
+  font-size:clamp(16px,1.35vw,20px);
+  line-height:1.5;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- deck ---------- */
+.deck{
+  display:flex;height:100%;
+  overflow-x:auto;overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;
+  scrollbar-width:none;
+}
+.deck::-webkit-scrollbar{display:none}
+.slide{
+  flex:0 0 100%;height:100%;
+  scroll-snap-align:start;scroll-snap-stop:always;
+  overflow-y:auto;
+  padding:
+    calc(env(safe-area-inset-top,0px) + clamp(28px,6vh,72px))
+    clamp(22px,7vw,120px)
+    calc(env(safe-area-inset-bottom,0px) + 110px);
+  display:flex;flex-direction:column;justify-content:center;
+}
+.inner{max-width:1100px;width:100%;margin:0 auto}
+
+h1,h2{font-family:var(--display);font-weight:700;margin:0;letter-spacing:-.01em;line-height:1.08}
+h1{font-size:clamp(36px,6.4vw,88px)}
+h2{font-size:clamp(28px,4.2vw,58px);max-width:18ch}
+p{margin:0}
+.lead{font-size:clamp(18px,1.8vw,26px);color:var(--ink-soft);max-width:34ch;margin-top:28px}
+
+/* task heading: every slide title is a task that gets ticked */
+.task{display:flex;gap:clamp(14px,1.6vw,24px);align-items:flex-start}
+.box{
+  flex:0 0 auto;
+  width:clamp(26px,3vw,44px);height:clamp(26px,3vw,44px);
+  margin-top:.12em;
+  border:3px solid var(--ink);border-radius:9px;
+  display:grid;place-items:center;
+}
+.box svg{width:70%;height:70%;stroke:var(--ink);stroke-width:3.2;fill:none;
+  stroke-dasharray:30;stroke-dashoffset:30;transition:stroke-dashoffset .5s ease .35s}
+.slide.seen .box svg{stroke-dashoffset:0}
+
+/* ---------- slide 1 ---------- */
+.cover .tag{
+  display:inline-block;margin-bottom:28px;
+  font-weight:600;color:var(--ink);
+  background:var(--marker);padding:4px 12px;border-radius:4px;
+  transform:rotate(-1.5deg);
+}
+.cover h1{max-width:13ch}
+.hint{margin-top:48px;color:var(--ink-soft);font-size:.9em;display:flex;align-items:center;gap:10px}
+.hint .swipe{display:inline-block;width:46px;height:2px;background:var(--ink-soft);position:relative}
+.hint .swipe::after{content:"";position:absolute;right:-1px;top:-4px;width:8px;height:8px;border-top:2px solid var(--ink-soft);border-right:2px solid var(--ink-soft);transform:rotate(45deg)}
+
+/* ---------- slide 2: problem ---------- */
+.problem{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(28px,5vw,80px);align-items:center;margin-top:40px}
+.pains{list-style:none;margin:0;padding:0;display:grid;gap:18px}
+.pains li{padding-left:34px;position:relative;font-size:1.1em}
+.pains li::before{content:"";position:absolute;left:0;top:.35em;width:18px;height:18px;border:2px solid var(--pencil);border-radius:5px}
+.pains li::after{content:"";position:absolute;left:3px;top:calc(.35em + 9px);width:14px;height:2px;background:var(--pencil);transform:rotate(-40deg)}
+.quote{margin-top:30px;color:var(--ink-soft);border-left:3px solid var(--marker);padding-left:16px}
+
+.sheet{
+  position:relative;background:var(--sheet);border:1px solid var(--line);border-radius:6px;
+  transform:rotate(2deg);padding:10px;
+}
+.grid{display:grid;grid-template-columns:28px repeat(4,1fr);font-size:12px;color:var(--ink-soft)}
+.grid span{border:1px solid var(--line);margin:-1px 0 0 -1px;height:30px;padding:6px 6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grid .h{background:color-mix(in srgb,var(--line) 35%,transparent);text-align:center;font-weight:600}
+.grid .dup{color:var(--pencil)}
+.scribble{position:absolute;inset:0;pointer-events:none}
+.scribble path{stroke:var(--pencil);stroke-width:4;fill:none;stroke-linecap:round;
+  stroke-dasharray:900;stroke-dashoffset:900;transition:stroke-dashoffset 1s ease .5s}
+.slide.seen .scribble path{stroke-dashoffset:0}
+
+/* ---------- slide 3: solution ---------- */
+.team{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px;max-width:900px}
+.chip{border:2px solid var(--ink);border-radius:999px;padding:8px 18px;font-weight:500;display:inline-flex;align-items:center;gap:10px}
+.chip.lead-chip{background:var(--ink);color:var(--paper)}
+.handle{font-weight:600;font-size:.85em;color:#1B2A4A;background:var(--marker);padding:2px 10px;border-radius:999px;transform:rotate(-2deg)}
+.chip.open{border-style:dashed;border-color:var(--ink-soft);color:var(--ink-soft)}
+.later{margin-top:28px;color:var(--ink-soft);font-size:.95em}
+.team.later-team{margin-top:12px}
+
+/* ---------- slide 4: benefits ---------- */
+.benefits{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(20px,3vw,48px);margin-top:48px}
+.benefit h3{font-family:var(--display);font-weight:500;font-size:clamp(18px,1.6vw,24px);margin:0 0 12px;
+  padding-bottom:12px;border-bottom:3px solid var(--ink)}
+.benefit p{color:var(--ink-soft)}
+
+/* ---------- slide 5: MVP ---------- */
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(16px,2.4vw,32px);margin-top:44px}
+.role{background:var(--sheet);border:1px solid var(--line);border-radius:14px;padding:22px 22px 26px}
+.role h3{font-family:var(--display);font-weight:500;font-size:clamp(18px,1.5vw,22px);margin:0 0 16px;display:flex;align-items:center;gap:10px}
+.role h3 i{width:12px;height:12px;border-radius:50%;background:var(--marker);display:inline-block;flex:0 0 auto}
+.role:nth-child(2) h3 i{background:#6FA8DC}
+.role:nth-child(3) h3 i{background:#7BC49A}
+.role ul{margin:0;padding-left:18px;display:grid;gap:8px;color:var(--ink-soft)}
+
+/* ---------- slide 6: asks ---------- */
+.asks{list-style:none;margin:40px 0 0;padding:0;display:grid;gap:14px;max-width:760px}
+.ask{
+  display:flex;gap:18px;align-items:center;width:100%;text-align:left;
+  background:var(--sheet);border:1px solid var(--line);border-radius:14px;
+  padding:18px 22px;font:inherit;font-size:1.1em;color:var(--ink);cursor:pointer;
+}
+.ask .box{width:30px;height:30px;margin:0;border-width:2.5px;border-radius:7px;transition:background .2s}
+.ask .box svg{stroke-dashoffset:30;transition:stroke-dashoffset .35s ease}
+.ask[aria-pressed="true"] .box{background:var(--marker)}
+.ask[aria-pressed="true"] .box svg{stroke-dashoffset:0}
+.ask[aria-pressed="true"] .t{text-decoration:line-through;text-decoration-color:var(--ink-soft);color:var(--ink-soft)}
+.ask.main{font-weight:600}
+.thanks{margin-top:36px;color:var(--ink-soft)}
+
+/* ---------- navigation ---------- */
+.nav{
+  position:fixed;left:0;right:0;bottom:0;
+  padding:14px clamp(22px,7vw,120px) calc(env(safe-area-inset-bottom,0px) + 18px);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  pointer-events:none;
+}
+.nav > *{pointer-events:auto}
+.progress{display:flex;gap:8px}
+.dot{
+  width:22px;height:22px;border:2px solid var(--ink-soft);border-radius:6px;background:transparent;
+  padding:0;cursor:pointer;display:grid;place-items:center;transition:border-color .2s,background .2s;
+}
+.dot svg{width:70%;height:70%;stroke:var(--paper);stroke-width:3.5;fill:none;opacity:0}
+.dot.done{background:var(--ink);border-color:var(--ink)}
+.dot.done svg{opacity:1}
+.dot.current{border-color:var(--ink);box-shadow:0 0 0 3px var(--marker)}
+.arrows{display:flex;gap:8px}
+.arrow{
+  width:46px;height:46px;border-radius:50%;border:2px solid var(--ink);
+  background:var(--paper);color:var(--ink);cursor:pointer;display:grid;place-items:center;
+}
+.arrow:disabled{opacity:.3;cursor:default}
+.arrow svg{width:20px;height:20px;stroke:currentColor;stroke-width:2.5;fill:none}
+button:focus-visible{outline:3px solid var(--marker);outline-offset:3px}
+
+/* ---------- responsive ---------- */
+@media (max-width:820px){
+  .problem,.benefits,.roles{grid-template-columns:1fr}
+  .slide{justify-content:flex-start}
+  .sheet{transform:rotate(1.5deg);max-width:420px}
+  .arrows{display:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .deck{scroll-behavior:auto}
+  *{transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<main class="deck" id="deck">
+
+  <!-- 1 -->
+  <section class="slide cover">
+    <div class="inner">
+      <span class="tag">Студенческий проект</span>
+      <div class="task">
+        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h1>Внутренняя система планирования</h1>
+      </div>
+      <p class="lead">Свой планер для колледжа — вместо Google Таблиц</p>
+      <p class="hint"><span>Листайте вправо</span><span class="swipe" aria-hidden="true"></span></p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="task">
+        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h2>Таблицы мешают планировать</h2>
+      </div>
+      <div class="problem">
+        <div>
+          <ul class="pains">
+            <li>Неудобно и некрасиво</li>
+            <li>Нет наглядной статистики</li>
+            <li>Задачи приходится дублировать в своём планере</li>
+          </ul>
+          <p class="quote">Так считаю не только я — многие сокурсники тоже.</p>
+        </div>
+        <div class="sheet" aria-hidden="true">
+          <div class="grid">
+            <span class="h"></span><span class="h">A</span><span class="h">B</span><span class="h">C</span><span class="h">D</span>
+            <span class="h">1</span><span>Задача</span><span>Срок</span><span>Статус</span><span>?</span>
+            <span class="h">2</span><span class="dup">Реферат</span><span>12.10</span><span>—</span><span></span>
+            <span class="h">3</span><span class="dup">Реферат</span><span>12.10</span><span>—</span><span></span>
+            <span class="h">4</span><span>Лаба 3</span><span></span><span>#REF!</span><span></span>
+            <span class="h">5</span><span></span><span></span><span></span><span></span>
+            <span class="h">6</span><span>Проект</span><span>??</span><span></span><span></span>
+          </div>
+          <svg class="scribble" viewBox="0 0 300 220" preserveAspectRatio="none">
+            <path d="M20 30 L280 190 M280 30 L20 190"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="task">
+        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h2>Свой веб-планер под процессы колледжа</h2>
+      </div>
+      <p class="lead">Разрабатывает инициативная команда студентов.</p>
+      <div class="team">
+        <span class="chip lead-chip">Тимлид и Java-разработчик · Титов Илья Александрович <span class="handle">@enotikf</span></span>
+        <span class="chip">Python-разработчик · Кирилл Валентинов</span>
+        <span class="chip">Python-разработчик · Паша Кузнецов</span>
+      </div>
+      <p class="later">По мере роста проекта подключим:</p>
+      <div class="team later-team">
+        <span class="chip open">+ Frontend-разработчик</span>
+        <span class="chip open">+ QA-тестировщик</span>
+        <span class="chip open">+ Аналитик</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="task">
+        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h2>Что получит колледж</h2>
+      </div>
+      <div class="benefits">
+        <div class="benefit">
+          <h3>Кураторы</h3>
+          <p>Контроль автоматизирован — освобождаются рабочие часы.</p>
+        </div>
+        <div class="benefit">
+          <h3>Успеваемость</h3>
+          <p>Удобный интерфейс делает планирование приятным.</p>
+        </div>
+        <div class="benefit">
+          <h3>Имидж</h3>
+          <p>Платформа, созданная студентами, — сильный инфоповод для приёмной комиссии.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="task">
+        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h2>Первая версия: только главное</h2>
+      </div>
+      <div class="roles">
+        <div class="role">
+          <h3><i></i>Администратор</h3>
+          <ul>
+            <li>Статистика по студентам и группам</li>
+            <li>Группы и закрепление кураторов</li>
+          </ul>
+        </div>
+        <div class="role">
+          <h3><i></i>Куратор</h3>
+          <ul>
+            <li>Задачи для студентов</li>
+            <li>Дашборд по группе и каждому студенту</li>
+          </ul>
+        </div>
+        <div class="role">
+          <h3><i></i>Студент</h3>
+          <ul>
+            <li>Доска задач</li>
+            <li>Дашборд прогресса и успеваемости</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="inner">
+      <div class="task">
+        <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+        <h2>Что нужно для старта</h2>
+      </div>
+      <ul class="asks">
+        <li><button class="ask main" aria-pressed="false">
+          <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+          <span class="t">Одобрение руководства</span></button></li>
+        <li><button class="ask" aria-pressed="false">
+          <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+          <span class="t">Пара интервью с кураторами</span></button></li>
+        <li><button class="ask" aria-pressed="false">
+          <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg></span>
+          <span class="t">Одна встреча по требованиям и пожеланиям</span></button></li>
+      </ul>
+      <p class="thanks">Спасибо! Готов ответить на вопросы.</p>
+    </div>
+  </section>
+
+</main>
+
+<nav class="nav" aria-label="Навигация по слайдам">
+  <div class="progress" id="progress"></div>
+  <div class="arrows">
+    <button class="arrow" id="prev" aria-label="Предыдущий слайд"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <button class="arrow" id="next" aria-label="Следующий слайд"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+  </div>
+</nav>
+
+<script>
+(() => {
+  const deck = document.getElementById('deck');
+  const slides = [...deck.querySelectorAll('.slide')];
+  const progress = document.getElementById('progress');
+  const prev = document.getElementById('prev');
+  const next = document.getElementById('next');
+  let current = 0;
+
+  const dots = slides.map((_, i) => {
+    const b = document.createElement('button');
+    b.className = 'dot';
+    b.setAttribute('aria-label', 'Слайд ' + (i + 1));
+    b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M4 12.5l5 5L20 6.5"/></svg>';
+    b.addEventListener('click', () => go(i));
+    progress.appendChild(b);
+    return b;
+  });
+
+  function go(i){
+    i = Math.max(0, Math.min(slides.length - 1, i));
+    deck.scrollTo({ left: i * deck.clientWidth });
+  }
+
+  function update(){
+    const i = Math.round(deck.scrollLeft / deck.clientWidth);
+    if (i === current && slides[i].classList.contains('seen')) return;
+    current = i;
+    slides[i].classList.add('seen');
+    dots.forEach((d, k) => {
+      d.classList.toggle('done', k < i);
+      d.classList.toggle('current', k === i);
+      if (k === i) d.setAttribute('aria-current', 'step'); else d.removeAttribute('aria-current');
+    });
+    prev.disabled = i === 0;
+    next.disabled = i === slides.length - 1;
+  }
+
+  let t;
+  deck.addEventListener('scroll', () => { clearTimeout(t); t = setTimeout(update, 60); });
+  window.addEventListener('resize', () => { deck.scrollLeft = current * deck.clientWidth; });
+
+  prev.addEventListener('click', () => go(current - 1));
+  next.addEventListener('click', () => go(current + 1));
+
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight','PageDown',' '].includes(e.key)) { e.preventDefault(); go(current + 1); }
+    if (['ArrowLeft','PageUp'].includes(e.key)) { e.preventDefault(); go(current - 1); }
+    if (e.key === 'Home') go(0);
+    if (e.key === 'End') go(slides.length - 1);
+  });
+
+  // vertical mouse wheel -> horizontal slide change
+  let lock = false;
+  deck.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    const s = slides[current];
+    if (s.scrollHeight > s.clientHeight + 4) return; // let tall slides scroll
+    e.preventDefault();
+    if (lock) return;
+    lock = true;
+    go(current + (e.deltaY > 0 ? 1 : -1));
+    setTimeout(() => lock = false, 700);
+  }, { passive:false });
+
+  document.querySelectorAll('.ask').forEach(b =>
+    b.addEventListener('click', () =>
+      b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') === 'true' ? 'false' : 'true')));
+
+  update();
+})();
+</script>
+</body>
+</html>
